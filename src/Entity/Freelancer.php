@@ -5,8 +5,14 @@ namespace App\Entity;
 use App\Repository\FreelancerRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Vich\UploaderBundle\Mapping\Annotation as Vich;
+use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
 
 #[ORM\Entity(repositoryClass: FreelancerRepository::class)]
+/**
+ * @Vich\Uploadable
+ */
 class Freelancer
 {
     #[ORM\Id]
@@ -31,6 +37,8 @@ class Freelancer
 
     #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
+
+    
 
     public function getId(): ?int
     {
@@ -108,4 +116,6 @@ class Freelancer
 
         return $this;
     }
+
+
 }

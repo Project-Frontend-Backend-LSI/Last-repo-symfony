@@ -4,10 +4,17 @@ namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
+
 use App\Entity\Freelancer;
+use App\Entity\User;
 
 #[Route('/api', name: 'api_')]
 class FreelancerController extends AbstractController
@@ -34,65 +41,74 @@ class FreelancerController extends AbstractController
         }
         return $this->json($data);
     }
-    #[Route('/freelancers', name: 'freelancer_create', methods:['post'] )]
+    #[Route('/freelancers', name: 'freelancer_create', methods: ['post'])]
     public function create(ManagerRegistry $doctrine, Request $request): JsonResponse
     {
         $entityManager = $doctrine->getManager();
         $freelancers = $doctrine
             ->getRepository(Freelancer::class)
             ->findAll();
-   
+            $freelancer=new Freelancer();
         foreach ($freelancers as $freelancer) {
-           if($freelancer->getEmail()==$request->request->get('email') || $freelancer->getUsername()==$request->request->get('username')){
-                return $this->json('Email or username already existe' , 404); 
-           }
+            if ($freelancer->getEmail() == $request->request->get('email') || $freelancer->getUsername() == $request->request->get('username')) {
+                return $this->json('Email or username already exists', 404);
+            }
         }
         $freelancer = new Freelancer();
         $freelancer->setEmail($request->request->get('email'));
         $freelancer->setUsername($request->request->get('username'));
-        $freelancer->setPassword($request->request->get('password'));
+
+        // Hash the password using bcrypt
+        $hashedPassword = password_hash($request->request->get('password'), PASSWORD_BCRYPT);
+        $freelancer->setPassword($hashedPassword);
+
         $freelancer->setCountry($request->request->get('country'));
         $freelancer->setPhone($request->request->get('phone'));
         $freelancer->setDescription($request->request->get('description'));
-   
+
         $entityManager->persist($freelancer);
         $entityManager->flush();
-   
-        $data =  [
-                'id' => $freelancer->getId(),
-               'username' => $freelancer->getUsername(),
-                'email' => $freelancer->getEmail(),
-                'password' => $freelancer->getPassword(),
-                'country' => $freelancer->getCountry(),
-                'phone' => $freelancer->getPhone(),
-               'description' => $freelancer->getDescription(),
+
+        $data = [
+            'id' => $freelancer->getId(),
+            'username' => $freelancer->getUsername(),
+            'email' => $freelancer->getEmail(),
+            'country' => $freelancer->getCountry(),
+            'phone' => $freelancer->getPhone(),
+            'description' => $freelancer->getDescription(),
+            'password'=>$freelancer->getPassword()
         ];
-           
+
         return $this->json($data);
     }
-    #[Route('/freelancers/login', name: 'freelancer_login', methods:['post'] )]
-    public function login(ManagerRegistry $doctrine,Request $request): JsonResponse
+
+    #[Route('/freelancers/login', name: 'freelancer_login', methods: ['post'])]
+    public function login(ManagerRegistry $doctrine, Request $request): JsonResponse
     {
         $entityManager = $doctrine->getManager();
-        if($request->request->get('email') and $request->request->get('password')){
+        if ($request->request->get('email') && $request->request->get('password')) {
             $freelancer = $entityManager->getRepository(Freelancer::class)->findOneBy(['email' => $request->request->get('email')]);
-            if(!$freelancer || $freelancer->getPassword()!=$request->request->get('password')){
-                return $this->json('No freelancer found for this email and password' , 404);
+
+            if (!$freelancer || !password_verify($request->request->get('password'), $freelancer->getPassword())) {
+                return $this->json('Invalid email or password', 404);
             }
+
             $data = [
                 'id' => $freelancer->getId(),
                 'username' => $freelancer->getUsername(),
                 'email' => $freelancer->getEmail(),
-                'password' => $freelancer->getPassword(),
                 'country' => $freelancer->getCountry(),
                 'phone' => $freelancer->getPhone(),
                 'description' => $freelancer->getDescription(),
+                'password'=>$freelancer->getPassword()
             ];
-
             return $this->json($data);
         }
-        return $this->json('email or password not send in body');
+
+        return $this->json('Email or password not sent in body');
     }
+    
+
     #[Route('/freelancers/{id}', name: 'freelancer_show', methods:['get'] )]
     public function show(ManagerRegistry $doctrine, int $id): JsonResponse
     {

@@ -114,6 +114,10 @@ class ServiceController extends AbstractController
             $service->setCategory($request->request->get('category'));
         if($request->request->get('delevrytime'))
             $service->setDelevrytime($request->request->get('delevrytime'));
+        if($request->request->get('price'))
+            $service->setPrice($request->request->get('price'));
+        if($request->request->get('category'))
+            $service->setCategory($request->request->get('category'));
         
         $entityManager->flush();
         $data = [
